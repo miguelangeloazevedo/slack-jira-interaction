@@ -4,37 +4,43 @@ import axios from 'axios';
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Environment variables from Railway
-const JIRA_WEBHOOK_URL = process.env.JIRA_WEBHOOK_URL;
-const JIRA_WEBHOOK_TOKEN = process.env.JIRA_WEBHOOK_TOKEN;
+const JIRA_WEBHOOK_URL = 'https://api-private.atlassian.com/automation/webhooks/jira/a/a1fb742f-fed4-4c3f-a25f-8ab7f3618290/01987917-d7cf-7854-80d8-5702f5f38641';
+const JIRA_TOKEN = 'eefd108cd47baeb1b93a2911d154a434dce76bb0';
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.post('/whohome', (req, res) => {
-  res.status(200).send('✅ Jira automation triggered.');
+function getTodayISODate() {
+  return new Date().toISOString().split('T')[0];
+}
 
-  axios.post(
-    JIRA_WEBHOOK_URL,
-    {
-      trigger: 'slack',
-      source: 'whohome'
-    },
-    {
-      headers: {
-        'X-Automation-Webhook-Token': JIRA_WEBHOOK_TOKEN,
-        'Content-Type': 'application/json'
+app.post('/whohome', async (req, res) => {
+  try {
+    const text = req.body.text?.trim(); // Slack sends the full command text in req.body.text
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : getTodayISODate();
+
+    await axios.post(
+      JIRA_WEBHOOK_URL,
+      { date },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Automation-Webhook-Token': JIRA_TOKEN,
+        },
       }
-    }
-  ).catch(error => {
-    console.error('Webhook error:', error?.response?.status, error?.response?.data);
-  });
+    );
+
+    res.status(200).send(`✅ Jira automation triggered for date: ${date}`);
+  } catch (error) {
+    console.error('Jira webhook failed:', error?.response?.status, error?.response?.data);
+    res.status(500).send('❌ Failed to trigger Jira automation.');
+  }
 });
 
 app.get('/', (req, res) => {
-  res.send('Slack-Jira bridge is running.');
+  res.send('Slack-Jira trigger bridge is online.');
 });
 
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
