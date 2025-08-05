@@ -7,8 +7,9 @@ const port = process.env.PORT || 3000;
 const JIRA_WEBHOOK_URL = 'https://api-private.atlassian.com/automation/webhooks/jira/a/a1fb742f-fed4-4c3f-a25f-8ab7f3618290/01987917-d7cf-7854-80d8-5702f5f38641';
 const JIRA_TOKEN = 'eefd108cd47baeb1b93a2911d154a434dce76bb0';
 
-app.use(express.urlencoded({ extended: true }));
+// ✅ JSON parser must come first
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 function getTodayISODate() {
   return new Date().toISOString().split('T')[0];
@@ -16,7 +17,8 @@ function getTodayISODate() {
 
 app.post('/whohome', async (req, res) => {
   try {
-    const text = req.body.text?.trim(); // Slack sends the full command text in req.body.text
+    const rawText = req.body?.text || '';
+    const text = rawText.trim();
     const date = /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : getTodayISODate();
 
     await axios.post(
